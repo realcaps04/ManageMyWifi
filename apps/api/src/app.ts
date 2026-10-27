@@ -81,7 +81,11 @@ export function createApp() {
   v1.use("/devices", devicesRouter);
   v1.use("/users", usersRouter);
   v1.use("/analytics", analyticsRouter);
+
+  // Full paths (local + when Vercel preserves /api prefix)
   app.use("/api/v1", v1);
+  // Fallback when the /api rewrite strips the prefix for the serverless entry
+  app.use("/v1", v1);
 
   app.use(
     (
