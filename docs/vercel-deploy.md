@@ -1,107 +1,69 @@
-# Deploy WiFi Control (web on Vercel)
+# Deploy ManageMyWifi (web + API on Vercel)
 
-Vercel hosts the **React dashboard only**. The API and local MikroTik agent must run elsewhere — Vercel serverless cannot keep the agent command channel + in-memory device inventory reliably.
+You do **not** need a separate API server. Vercel hosts both:
 
-```
-Browser (anywhere)
-   │ HTTPS
-   ▼
-Vercel (apps/web)
-   │ HTTPS  VITE_API_URL
-   ▼
-API host (Railway / Render / VPS)  ← always-on Node
-   │ agent outbound HTTPS
-   ▼
-Local agent (PC on router LAN)
-   │
-   ▼
-MikroTik
-```
-
-## 1. Deploy the API (required before Vercel)
-
-On a VPS / Railway / Render:
-
-```bash
-cd apps/api
-# set env:
-# PORT or API_PORT=4000
-# CORS_ORIGINS=https://your-app.vercel.app
-# AGENT_SHARED_SECRET=<long-random>
-# DEV_AUTH_BYPASS=false   # use true only for temporary testing
-npm install
-npm run build -w @wifi-control/shared-types -w @wifi-control/validation -w @wifi-control/api
-npm run start -w @wifi-control/api
-```
-
-Expose HTTPS (Caddy/nginx or platform TLS). Health check: `GET /health`.
-
-## 2. Point the agent at the public API
-
-On the LAN machine (`apps/agent/.env`):
+- Web UI → your `*.vercel.app` site  
+- API → same site under `/api/v1/...`
 
 ```
-BACKEND_URL=https://YOUR_API_HOST/api/v1
-AGENT_SHARED_SECRET=<same as API>
-MIKROTIK_HOST=<router-lan-ip>
+Browser  →  Vercel (web + /api/v1)
+                 ↑
+Local agent (on your LAN) posts device sync / heartbeats
+                 ↓
+            MikroTik router
+```
+
+## 1. Vercel project settings
+
+1. Import the GitHub repo `ManageMyWifi`.
+2. **Root Directory:** leave empty (repository root).
+3. Framework: Vite (or Other) — `vercel.json` already configures build/output.
+4. Add these **Environment Variables** (Production + Preview):
+
+| Name | Example | Required |
+|------|---------|----------|
+| `WIFI_LOGIN_SSID` | `YourWifiName` | Yes |
+| `WIFI_LOGIN_PASSWORD` | strong password | Yes |
+| `AGENT_SHARED_SECRET` | long random string | Yes |
+| `SESSION_SECRET` | long random string | Yes |
+| `DEV_AUTH_BYPASS` | `false` | Yes |
+| `CORS_ORIGINS` | `https://your-app.vercel.app` | Recommended |
+| `NETWORK_NAME` | `ManageMyWifi` | Optional |
+
+No `VITE_API_URL` needed — the web app calls `/api/v1` on the same domain.
+
+## 2. Redeploy
+
+Push to `main` or click **Redeploy** in Vercel.
+
+Check API health: `https://your-app.vercel.app/api/health`
+
+## 3. Point the local agent at Vercel
+
+On the PC next to your MikroTik (`apps/agent/.env`):
+
+```
+BACKEND_URL=https://your-app.vercel.app/api/v1
+AGENT_SHARED_SECRET=<same as Vercel>
+NETWORK_ID=00000000-0000-4000-8000-000000000001
+MIKROTIK_HOST=192.168.1.1
 MIKROTIK_USER=wifi-control
-MIKROTIK_PASSWORD=<secret>
+MIKROTIK_PASSWORD=<router password>
 MIKROTIK_TLS_INSECURE=true
 ```
 
-```bash
-npm run dev:agent
-# or install as a Windows/Linux service for always-on
-```
-
-## 3. Deploy the web app to Vercel
-
-### Option A — CLI
+Then:
 
 ```bash
 cd E:\Wifi_manager
-npx vercel
+npm run dev:agent
 ```
 
-Root `vercel.json` builds the web workspace and publishes `apps/web/dist`.
+## 4. Sign in on the website
 
-### Option B — GitHub
+Open your Vercel URL → enter the **WiFi name** and **password** you set in Vercel env vars.
 
-1. Import `ManageMyWifi` into Vercel.
-2. Framework: Vite (or Other).
-3. Root directory: repository root (uses root `vercel.json`).
-4. Environment variable:
+## Notes
 
-| Name | Value |
-|------|--------|
-| `VITE_API_URL` | `https://YOUR_API_HOST/api/v1` |
-
-5. Deploy.
-
-## 4. CORS
-
-API `.env`:
-
-```
-CORS_ORIGINS=https://your-app.vercel.app,http://localhost:5173
-```
-
-Preview deployments (`*.vercel.app`) are allowed when any configured origin ends with `.vercel.app`.
-
-## 5. Manage from the web
-
-With agent online and router reachable:
-
-- **Connected Devices** — suspend / resume / block / unblock / disconnect / bandwidth limits
-- **Blocked / Suspended** — filtered management lists
-- **Users** — register people for later device assignment
-- **Settings** — deployment + live agent/router status
-- **Network** — router inventory
-
-Actions are queued to the agent and only marked successful after router verification.
-
-## Important
-
-- Do **not** put MikroTik credentials in Vercel.
-- Do **not** expose RouterOS REST to the internet.
-- Memory store resets when the API process restarts — apply Supabase migrations for production persistence (`supabase/migrations`).
+- Serverless memory resets on cold starts. For always-on durable storage later, add Supabase (`SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY`).
+- Never put MikroTik credentials in Vercel — only on the LAN agent machine.

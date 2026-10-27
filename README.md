@@ -71,11 +71,11 @@ See root `.env.example` and per-app `.env.example` files.
 | `MIKROTIK_HOST/USER/PASSWORD` | Agent | Local RouterOS REST credentials |
 | `SUPABASE_*` | API / Web | Optional cloud DB + auth |
 
-## Deploy web to Vercel
+## Deploy to Vercel (web + API together)
 
 See [docs/vercel-deploy.md](docs/vercel-deploy.md).
 
-Summary: host `apps/web` on Vercel with `VITE_API_URL` pointing at your always-on API; run the agent on the router LAN against that same API.
+You do **not** need a separate API host. Vercel serves the dashboard and `/api/v1` on the same URL. Run only the **local agent** on your LAN and point `BACKEND_URL` at your Vercel site.
 
 ## Documentation
 

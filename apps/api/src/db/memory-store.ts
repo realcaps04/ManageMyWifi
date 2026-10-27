@@ -17,6 +17,7 @@ import type {
   NetworkUser,
   Router,
   RouterStatus,
+  WifiNetworkInfo,
   WirelessStack,
 } from "@wifi-control/shared-types";
 
@@ -33,7 +34,7 @@ export class MemoryStore {
 
   network: Network = {
     id: process.env.DEV_NETWORK_ID || "00000000-0000-4000-8000-000000000001",
-    name: "Development Network",
+    name: process.env.NETWORK_NAME || "ManageMyWifi",
     timezone: "UTC",
     created_at: nowIso(),
     updated_at: nowIso(),
@@ -45,7 +46,7 @@ export class MemoryStore {
     name: "MikroTik",
     model: null,
     routeros_version: null,
-    host: process.env.MIKROTIK_HOST || "192.168.88.1",
+    host: process.env.MIKROTIK_HOST || "192.168.1.1",
     status: "unknown",
     last_seen_at: null,
     cpu_load: null,
@@ -62,6 +63,13 @@ export class MemoryStore {
   commands = new Map<string, CommandQueueItem>();
   activityLogs: ActivityLog[] = [];
   agentTokens = new Map<string, string>(); // token -> agentId
+  wifiNetworks: WifiNetworkInfo[] = [];
+
+  /** Portal credentials for web sign-in (SSID + verification password) */
+  portal: { ssid: string | null; password: string | null } = {
+    ssid: process.env.WIFI_LOGIN_SSID || null,
+    password: process.env.WIFI_LOGIN_PASSWORD || null,
+  };
 
   constructor() {
     this.router.network_id = this.network.id;
@@ -133,9 +141,27 @@ export class MemoryStore {
     return agent;
   }
 
-  syncDevices(devices: DiscoveredDevice[], router?: MemoryStore["router"]) {
+  syncDevices(
+    devices: DiscoveredDevice[],
+    router?: Partial<Router>,
+    wifiNetworks?: WifiNetworkInfo[]
+  ) {
     const seen = new Set<string>();
     const ts = nowIso();
+
+    if (wifiNetworks) {
+      this.wifiNetworks = wifiNetworks.map((n) => ({
+        interface_name: n.interface_name,
+        ssid: n.ssid ?? null,
+        band: n.band ?? null,
+        channel: n.channel ?? null,
+        frequency: n.frequency ?? null,
+        running: Boolean(n.running),
+        disabled: Boolean(n.disabled),
+        mode: n.mode ?? null,
+        clients: n.clients ?? 0,
+      }));
+    }
 
     for (const d of devices) {
       seen.add(d.identity_key);
@@ -302,6 +328,7 @@ export class MemoryStore {
         upload_bps: null,
         daily_bandwidth_bytes: null,
       },
+      wifi_networks: this.wifiNetworks,
     };
   }
 
@@ -349,4 +376,15 @@ export class MemoryStore {
   }
 }
 
-export const memoryStore = new MemoryStore();
+/**
+ * Reuse one store across warm Vercel serverless invocations.
+ * For durable production data, configure Supabase.
+ */
+const globalStore = globalThis as typeof globalThis & {
+  __wifiControlStore?: MemoryStore;
+};
+
+export const memoryStore =
+  globalStore.__wifiControlStore ??
+  (globalStore.__wifiControlStore = new MemoryStore());
+
