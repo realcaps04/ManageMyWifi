@@ -1,5 +1,11 @@
 const API_BASE = import.meta.env.VITE_API_URL || "/api/v1";
 
+let authToken: string | null = null;
+
+export function setAuthToken(token: string | null) {
+  authToken = token;
+}
+
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -16,13 +22,18 @@ export function getApiBaseUrl() {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    Accept: "application/json",
+    ...(init?.headers as Record<string, string> | undefined),
+  };
+  if (authToken) {
+    headers.Authorization = `Bearer ${authToken}`;
+  }
+
   const res = await fetch(`${API_BASE}${path}`, {
     ...init,
-    headers: {
-      "Content-Type": "application/json",
-      Accept: "application/json",
-      ...(init?.headers || {}),
-    },
+    headers,
   });
 
   const text = await res.text();
@@ -74,6 +85,20 @@ export interface NetworkStatus {
     upload_bps: number | null;
     daily_bandwidth_bytes: number | null;
   };
+  wifi_networks: WifiNetwork[];
+}
+
+export interface WifiNetwork {
+  interface_name: string;
+  ssid: string | null;
+  band: string | null;
+  channel: string | null;
+  frequency: string | null;
+  running: boolean;
+  disabled: boolean;
+  mode: string | null;
+  clients: number;
+  online_devices?: number;
 }
 
 export interface Device {
@@ -127,6 +152,39 @@ export interface NetworkUser {
 }
 
 export const api = {
+  getAuthStatus: () =>
+    request<{
+      login_required: boolean;
+      password_configured: boolean;
+      known_ssid_count: number;
+      network_name: string;
+      suggested_ssids: string[];
+    }>("/auth/status"),
+  wifiLogin: (ssid: string, password: string) =>
+    request<{
+      token: string;
+      ssid: string;
+      network: { id: string; name: string };
+      expires_in_hours: number;
+    }>("/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ ssid, password }),
+    }),
+  authMe: () =>
+    request<{ userId: string; networkId?: string; ssid: string | null }>(
+      "/auth/me"
+    ),
+  getPortal: () =>
+    request<{
+      ssid: string | null;
+      password_set: boolean;
+      suggested_ssids: string[];
+    }>("/auth/portal"),
+  updatePortal: (body: { ssid?: string; password?: string }) =>
+    request<{ ssid: string | null; password_set: boolean }>("/auth/portal", {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
   getNetworkStatus: () => request<NetworkStatus>("/network/status"),
   getDevices: (params?: {
     page?: number;
@@ -156,8 +214,18 @@ export const api = {
       body: JSON.stringify(body),
     }),
   getRouterStatus: () =>
-    request<NetworkStatus["router"] & { host?: string; name?: string }>(
-      "/router/status"
+    request<
+      NetworkStatus["router"] & {
+        host?: string;
+        name?: string;
+        wifi_networks?: WifiNetwork[];
+      }
+    >("/router/status"),
+  getWifiNetworks: () =>
+    request<{ data: WifiNetwork[]; available: boolean }>("/router/wifi"),
+  getRouterInterfaces: () =>
+    request<{ data: WifiNetwork[]; available: boolean; message?: string }>(
+      "/router/interfaces"
     ),
   suspendDevice: (id: string, body?: { reason?: string; expires_at?: string }) =>
     request<CommandQueuedResponse>(`/devices/${id}/suspend`, {

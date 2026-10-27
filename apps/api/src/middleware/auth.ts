@@ -2,48 +2,58 @@ import type { Request, Response, NextFunction } from "express";
 import { env, supabaseConfigured } from "../config";
 import { getSupabase } from "../db/supabase";
 import { memoryStore } from "../db/memory-store";
+import { verifySession } from "../security/session";
 
 export interface AuthedRequest extends Request {
   userId?: string;
   agentId?: string;
   networkId?: string;
+  ssid?: string;
 }
 
-/** Admin/API user auth via Supabase JWT, or DEV_AUTH_BYPASS in development. */
+/** Admin/API user auth via WiFi portal session, Supabase JWT, or DEV_AUTH_BYPASS. */
 export async function requireUser(
   req: AuthedRequest,
   res: Response,
   next: NextFunction
 ) {
-  if (env.DEV_AUTH_BYPASS || (!supabaseConfigured && env.NODE_ENV !== "production")) {
+  const header = req.headers.authorization;
+  if (header?.startsWith("Bearer ")) {
+    const token = header.slice(7);
+
+    const session = verifySession(token);
+    if (session) {
+      req.userId = session.sub;
+      req.networkId = session.networkId;
+      req.ssid = session.ssid;
+      return next();
+    }
+
+    if (supabaseConfigured) {
+      const supabase = getSupabase();
+      if (supabase) {
+        const { data, error } = await supabase.auth.getUser(token);
+        if (!error && data.user) {
+          req.userId = data.user.id;
+          const networkHeader = req.headers["x-network-id"];
+          if (typeof networkHeader === "string") {
+            req.networkId = networkHeader;
+          } else {
+            req.networkId = memoryStore.network.id;
+          }
+          return next();
+        }
+      }
+    }
+  }
+
+  if (env.DEV_AUTH_BYPASS) {
     req.userId = "dev-user";
     req.networkId = memoryStore.network.id;
     return next();
   }
 
-  const header = req.headers.authorization;
-  if (!header?.startsWith("Bearer ")) {
-    return res.status(401).json({ error: "Missing bearer token" });
-  }
-
-  const token = header.slice(7);
-  const supabase = getSupabase();
-  if (!supabase) {
-    return res.status(503).json({ error: "Auth provider not configured" });
-  }
-
-  const { data, error } = await supabase.auth.getUser(token);
-  if (error || !data.user) {
-    return res.status(401).json({ error: "Invalid token" });
-  }
-
-  req.userId = data.user.id;
-  // Network scoping: prefer header, fall back to first membership (API layer)
-  const networkHeader = req.headers["x-network-id"];
-  if (typeof networkHeader === "string") {
-    req.networkId = networkHeader;
-  }
-  next();
+  return res.status(401).json({ error: "Sign in required" });
 }
 
 /** Agent auth via X-Agent-Token header. */

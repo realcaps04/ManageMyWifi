@@ -105,13 +105,23 @@ agentRouter.post(
   (req: AuthedRequest, res) => {
     const body = req.body as {
       devices: Parameters<typeof memoryStore.syncDevices>[0];
+      wifi_networks?: Parameters<typeof memoryStore.syncDevices>[2];
       router?: Parameters<typeof memoryStore.syncDevices>[1];
       synced_at: string;
     };
 
-    const result = memoryStore.syncDevices(body.devices, body.router as never);
+    const result = memoryStore.syncDevices(
+      body.devices,
+      body.router as never,
+      body.wifi_networks
+    );
     logger.debug(
-      { agentId: req.agentId, ...result, synced_at: body.synced_at },
+      {
+        agentId: req.agentId,
+        ...result,
+        wifiNetworks: body.wifi_networks?.length ?? 0,
+        synced_at: body.synced_at,
+      },
       "Device sync received"
     );
     res.json({ ok: true, ...result });

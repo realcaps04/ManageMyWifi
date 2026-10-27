@@ -3,6 +3,7 @@ import { MikroTikClient } from "../router/mikrotik-client";
 import { detectCapabilities, type RouterCapabilities } from "../router/capability";
 import { fetchDhcpLeases } from "../router/dhcp";
 import { discoverWifiClients } from "../router/wifi-clients";
+import { discoverWifiInterfaces } from "../router/wifi-interfaces";
 import { BackendClient } from "./backend-client";
 import { logger } from "../utils/logger";
 
@@ -48,10 +49,15 @@ export class SyncService {
       this.wirelessStack,
       leases
     );
+    const wifiNetworks = await discoverWifiInterfaces(
+      this.router,
+      this.wirelessStack
+    );
 
     const caps = this.lastCaps!;
     const result = await this.backend.sync({
       devices,
+      wifi_networks: wifiNetworks,
       synced_at: new Date().toISOString(),
       router: {
         model: caps.model,
@@ -65,9 +71,14 @@ export class SyncService {
     });
 
     logger.info(
-      { deviceCount: devices.length, leaseCount: leases.length, result },
+      {
+        deviceCount: devices.length,
+        leaseCount: leases.length,
+        wifiNetworks: wifiNetworks.length,
+        result,
+      },
       "Sync completed"
     );
-    return { devices, leases, caps };
+    return { devices, leases, caps, wifiNetworks };
   }
 }

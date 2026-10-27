@@ -16,7 +16,7 @@ const envSchema = z.object({
     .default("00000000-0000-4000-8000-000000000001"),
   AGENT_ID: z.string().optional(),
   AGENT_TOKEN: z.string().optional(),
-  MIKROTIK_HOST: z.string().default("192.168.88.1"),
+  MIKROTIK_HOST: z.string().default("192.168.1.1"),
   MIKROTIK_PORT: z.coerce.number().default(443),
   MIKROTIK_USER: z.string().default("wifi-control"),
   MIKROTIK_PASSWORD: z.string().default(""),

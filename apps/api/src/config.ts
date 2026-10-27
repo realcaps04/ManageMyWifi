@@ -14,6 +14,11 @@ const envSchema = z.object({
   SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
   SUPABASE_ANON_KEY: z.string().optional(),
   AGENT_SHARED_SECRET: z.string().min(8).default("dev-agent-shared-secret"),
+  SESSION_SECRET: z.string().min(8).optional(),
+  /** WiFi portal sign-in — SSID name users must enter */
+  WIFI_LOGIN_SSID: z.string().optional(),
+  /** WiFi portal sign-in — shared verification password */
+  WIFI_LOGIN_PASSWORD: z.string().optional(),
   DEV_NETWORK_ID: z.string().uuid().optional(),
   DEV_AUTH_BYPASS: z
     .string()

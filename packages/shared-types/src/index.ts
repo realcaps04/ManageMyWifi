@@ -240,8 +240,21 @@ export interface DiscoveredDevice {
   connected_at?: string | null;
 }
 
+export interface WifiNetworkInfo {
+  interface_name: string;
+  ssid: string | null;
+  band: string | null;
+  channel: string | null;
+  frequency: string | null;
+  running: boolean;
+  disabled: boolean;
+  mode: string | null;
+  clients: number;
+}
+
 export interface AgentSyncRequest {
   devices: DiscoveredDevice[];
+  wifi_networks?: WifiNetworkInfo[];
   router?: AgentHeartbeatRequest["router"];
   synced_at: string;
 }
@@ -274,6 +287,7 @@ export interface NetworkStatusResponse {
     upload_bps: number | null;
     daily_bandwidth_bytes: number | null;
   };
+  wifi_networks: WifiNetworkInfo[];
 }
 
 export interface ApiErrorBody {

@@ -1,6 +1,8 @@
-import { Bell, Search } from "lucide-react";
+import { Bell, LogOut, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { StatusDot } from "@/components/ui/status-dot";
+import { useAuth } from "@/lib/auth";
 import type { NetworkStatus } from "@/lib/api";
 
 export function Topbar({
@@ -10,6 +12,8 @@ export function Topbar({
   status?: NetworkStatus;
   title: string;
 }) {
+  const { session, logout } = useAuth();
+
   return (
     <header className="flex h-14 shrink-0 items-center justify-between gap-4 border-b border-border bg-white px-6">
       <div>
@@ -44,9 +48,21 @@ export function Topbar({
         >
           <Bell className="h-4 w-4" />
         </button>
-        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-xs font-semibold text-slate-600">
-          AD
+        <div className="hidden text-right sm:block">
+          <div className="text-xs font-medium text-slate-800">
+            {session?.ssid || "Signed in"}
+          </div>
+          <div className="text-[11px] text-muted">Verified WiFi</div>
         </div>
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={logout}
+          title="Sign out"
+        >
+          <LogOut className="h-3.5 w-3.5" />
+          <span className="hidden sm:inline">Sign out</span>
+        </Button>
       </div>
     </header>
   );

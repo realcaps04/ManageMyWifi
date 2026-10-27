@@ -53,8 +53,21 @@ export const discoveredDeviceSchema = z.object({
   connected_at: z.string().datetime().nullable().optional(),
 });
 
+export const wifiNetworkSchema = z.object({
+  interface_name: z.string().min(1).max(120),
+  ssid: z.string().nullable().optional(),
+  band: z.string().nullable().optional(),
+  channel: z.string().nullable().optional(),
+  frequency: z.string().nullable().optional(),
+  running: z.boolean().optional(),
+  disabled: z.boolean().optional(),
+  mode: z.string().nullable().optional(),
+  clients: z.number().int().nonnegative().optional(),
+});
+
 export const agentSyncSchema = z.object({
   devices: z.array(discoveredDeviceSchema).max(2000),
+  wifi_networks: z.array(wifiNetworkSchema).max(100).optional(),
   router: agentHeartbeatSchema.shape.router,
   synced_at: z.string().datetime(),
 });

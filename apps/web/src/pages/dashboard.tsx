@@ -13,8 +13,9 @@ import {
   HardDrive,
 } from "lucide-react";
 import { Link } from "react-router-dom";
-import { api } from "@/lib/api";
+import { api, getApiBaseUrl } from "@/lib/api";
 import { MetricCard } from "@/components/metric-card";
+import { WifiNetworksPanel } from "@/components/wifi-networks-panel";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusDot } from "@/components/ui/status-dot";
@@ -43,6 +44,8 @@ export function DashboardPage() {
   }
 
   if (statusQuery.isError) {
+    const apiBase = getApiBaseUrl();
+    const onVercel = typeof window !== "undefined" && window.location.hostname.includes("vercel.app");
     return (
       <Card>
         <CardContent className="py-10 text-center">
@@ -50,12 +53,19 @@ export function DashboardPage() {
             Unable to reach the API
           </p>
           <p className="mt-1 text-sm text-muted">
-            Start the backend (`npm run dev:api`) and refresh this page.
+            {onVercel
+              ? `Set Vercel env VITE_API_URL to your public API (currently ${apiBase}). Localhost APIs are not reachable from Vercel.`
+              : "Start the backend (`npm run dev:api`) and refresh this page."}
           </p>
         </CardContent>
       </Card>
     );
   }
+
+  const wifiNetworks = status?.wifi_networks ?? [];
+  const routerDisconnected =
+    status?.router.status === "disconnected" ||
+    status?.router.status === "unknown";
 
   return (
     <div className="space-y-6">
@@ -63,6 +73,16 @@ export function DashboardPage() {
         <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
           Local agent is offline or unreachable. Device data may be stale until
           the agent reconnects to the backend.
+        </div>
+      )}
+      {!offline && routerDisconnected && (
+        <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          Agent is up, but the router is not connected. Set{" "}
+          <code className="rounded bg-amber-100 px-1">MIKROTIK_HOST</code> (your
+          gateway is likely <strong>192.168.1.1</strong>) and{" "}
+          <code className="rounded bg-amber-100 px-1">MIKROTIK_PASSWORD</code> in{" "}
+          <code className="rounded bg-amber-100 px-1">apps/agent/.env</code>, then
+          restart <code className="rounded bg-amber-100 px-1">npm run dev:agent</code>.
         </div>
       )}
 
@@ -141,6 +161,11 @@ export function DashboardPage() {
           icon={Cpu}
         />
       </div>
+
+      <WifiNetworksPanel
+        networks={wifiNetworks}
+        emptyHint="Once the agent syncs with MikroTik, SSIDs, bands, and client counts appear here."
+      />
 
       <div className="grid gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">
