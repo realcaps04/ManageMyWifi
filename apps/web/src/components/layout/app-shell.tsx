@@ -26,7 +26,7 @@ export function AppShell() {
     refetchInterval: 10_000,
   });
 
-  const title = titles[location.pathname] || "WiFi Control";
+  const title = titles[location.pathname] || "ManageMyWifi";
 
   return (
     <div className="flex h-full min-h-0">

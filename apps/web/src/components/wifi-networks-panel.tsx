@@ -17,7 +17,7 @@ export function WifiNetworksPanel({
       <CardHeader>
         <CardTitle>WiFi networks</CardTitle>
         <p className="mt-0.5 text-sm text-muted">
-          SSIDs and radios reported by your MikroTik via the local agent.
+          SSIDs and radios reported by your router via the local agent.
         </p>
       </CardHeader>
       <CardContent>
@@ -30,7 +30,7 @@ export function WifiNetworksPanel({
             </p>
             <p className="mx-auto mt-1 max-w-md text-sm text-muted">
               {emptyHint ||
-                "Start the agent with a valid MikroTik password so SSIDs, bands, and client counts can sync."}
+                "Start the agent with your router password so SSIDs, bands, and client counts can sync."}
             </p>
           </div>
         )}

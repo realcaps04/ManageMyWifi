@@ -1,6 +1,5 @@
 import type { Request, Response, NextFunction } from "express";
-import { env, supabaseConfigured } from "../config";
-import { getSupabase } from "../db/supabase";
+import { env } from "../config";
 import { memoryStore } from "../db/memory-store";
 import { verifySession } from "../security/session";
 
@@ -11,7 +10,7 @@ export interface AuthedRequest extends Request {
   ssid?: string;
 }
 
-/** Admin/API user auth via WiFi portal session, Supabase JWT, or DEV_AUTH_BYPASS. */
+/** Admin/API user auth via WiFi portal session or DEV_AUTH_BYPASS. */
 export async function requireUser(
   req: AuthedRequest,
   res: Response,
@@ -27,23 +26,6 @@ export async function requireUser(
       req.networkId = session.networkId;
       req.ssid = session.ssid;
       return next();
-    }
-
-    if (supabaseConfigured) {
-      const supabase = getSupabase();
-      if (supabase) {
-        const { data, error } = await supabase.auth.getUser(token);
-        if (!error && data.user) {
-          req.userId = data.user.id;
-          const networkHeader = req.headers["x-network-id"];
-          if (typeof networkHeader === "string") {
-            req.networkId = networkHeader;
-          } else {
-            req.networkId = memoryStore.network.id;
-          }
-          return next();
-        }
-      }
     }
   }
 

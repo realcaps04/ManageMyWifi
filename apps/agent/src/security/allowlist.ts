@@ -17,7 +17,7 @@ export function isAllowedCommand(type: string): type is CommandType {
   return (COMMAND_ALLOWLIST as readonly string[]).includes(type);
 }
 
-/** RouterOS comment / list namespace for app-managed rules */
+/** Router comment / list namespace for app-managed rules */
 export const RULE_NAMESPACE = "wifi-control";
 export const ADDRESS_LIST_SUSPEND = "wifi-control:suspend";
 export const ADDRESS_LIST_BLOCK = "wifi-control:block";

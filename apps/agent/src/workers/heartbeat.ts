@@ -2,13 +2,13 @@ import type { AgentStatus } from "@wifi-control/shared-types";
 import { AGENT_VERSION } from "../config/env";
 import { BackendClient } from "../services/backend-client";
 import type { SyncService } from "../services/sync";
-import { MikroTikClient } from "../router/mikrotik-client";
+import { RouterClient } from "../router/router-client";
 import { logger } from "../utils/logger";
 import { hostname } from "os";
 
 export async function sendHeartbeat(
   backend: BackendClient,
-  router: MikroTikClient,
+  router: RouterClient,
   sync: SyncService
 ) {
   const reachable = await router.ping();

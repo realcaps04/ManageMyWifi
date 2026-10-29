@@ -159,16 +159,50 @@ export const api = {
       known_ssid_count: number;
       network_name: string;
       suggested_ssids: string[];
+      configured_ssid?: string | null;
+      auth_mode?: string;
+      setup_hint?: string;
     }>("/auth/status"),
-  wifiLogin: (ssid: string, password: string) =>
+  checkWifiConnection: () =>
+    request<{
+      agent_status: "online" | "offline" | "degraded";
+      agent_last_heartbeat_at: string | null;
+      router_status: "connected" | "disconnected" | "unknown";
+      detected_ssids: string[];
+      detected_ssid: string | null;
+      network_live: boolean;
+      can_quick_login: boolean;
+      connected_devices: number;
+      network_name: string;
+      password_configured: boolean;
+      checked_at: string;
+      hint: string;
+      wifi_networks: Array<{
+        ssid: string | null;
+        interface_name: string;
+        running: boolean;
+        clients: number;
+      }>;
+    }>("/auth/connection-check"),
+  wifiLogin: (
+    ssid: string,
+    password: string,
+    opts?: { use_connection_check?: boolean; device_online?: boolean }
+  ) =>
     request<{
       token: string;
       ssid: string;
+      login_mode?: string;
       network: { id: string; name: string };
       expires_in_hours: number;
     }>("/auth/login", {
       method: "POST",
-      body: JSON.stringify({ ssid, password }),
+      body: JSON.stringify({
+        ssid: ssid || undefined,
+        password,
+        use_connection_check: opts?.use_connection_check,
+        device_online: opts?.device_online,
+      }),
     }),
   authMe: () =>
     request<{ userId: string; networkId?: string; ssid: string | null }>(
@@ -179,13 +213,56 @@ export const api = {
       ssid: string | null;
       password_set: boolean;
       suggested_ssids: string[];
+      auth_mode?: string;
+      networks?: Array<{
+        ssid: string | null;
+        interface_name: string;
+        running: boolean;
+        clients: number;
+        has_passphrase: boolean;
+      }>;
+      overrides?: Array<{
+        ssid: string;
+        password_set: boolean;
+        source: string;
+      }>;
     }>("/auth/portal"),
-  updatePortal: (body: { ssid?: string; password?: string }) =>
+  updatePortal: (body: { ssid: string; password?: string }) =>
     request<{ ssid: string | null; password_set: boolean }>("/auth/portal", {
       method: "PUT",
       body: JSON.stringify(body),
     }),
   getNetworkStatus: () => request<NetworkStatus>("/network/status"),
+  getRouterConnection: () =>
+    request<{
+      host: string;
+      port: number;
+      user: string;
+      password_set: boolean;
+      tls_insecure: boolean;
+      updated_at: string | null;
+      configured: boolean;
+    }>("/network/router-connection"),
+  updateRouterConnection: (body: {
+    host: string;
+    port?: number;
+    user: string;
+    password?: string;
+    tls_insecure?: boolean;
+  }) =>
+    request<{
+      host: string;
+      port: number;
+      user: string;
+      password_set: boolean;
+      tls_insecure: boolean;
+      updated_at: string | null;
+      configured: boolean;
+      message?: string;
+    }>("/network/router-connection", {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
   getDevices: (params?: {
     page?: number;
     pageSize?: number;

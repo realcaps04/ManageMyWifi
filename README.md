@@ -1,41 +1,38 @@
-# WiFi Control
+# ManageMyWifi
 
-Professional MikroTik WiFi Network Management Platform.
+Public WiFi network management — manage devices, access, and network health from the browser.
 
-**Architecture:** Admin browser → React frontend → Node.js API (VPS) → Local network agent → MikroTik RouterOS REST API.
+**Architecture:** Browser → ManageMyWifi web app → API → Local network agent → Your WiFi router (LAN).
 
-The backend never requires exposing MikroTik’s API to the public internet. The agent opens an outbound authenticated connection and executes allowlisted operations locally.
+The cloud never needs your router opened to the internet. A small agent on your LAN talks to the router and syncs with the public site.
 
 ## Monorepo layout
 
 ```
 apps/
-  web/      React + Vite + Tailwind admin UI
+  web/      React + Vite admin UI
   api/      Express TypeScript API
-  agent/   Local MikroTik agent
+  agent/   Local network agent (runs on your LAN)
 packages/
   shared-types/
   validation/
-supabase/
-  migrations/
 docs/
 ```
 
 ## Milestone 1 (current)
 
 - Monorepo with web, API, and agent
-- Supabase SQL migrations (RLS enabled)
-- Agent discovers real WiFi clients + DHCP leases via RouterOS REST
-- Devices sync to API and appear in the dashboard
+- In-memory API store for local development (no external DB)
+- Agent discovers WiFi clients + DHCP leases from your router
+- Devices sync to the dashboard
 - Agent heartbeat / health monitoring
 - Block / suspend control is **queued but deferred** until discovery is verified
 
 ## Prerequisites
 
 - Node.js 20+
-- A MikroTik router with **RouterOS v7** and REST API enabled
+- A WiFi router with a LAN REST API (agent host must be on the same network)
 - A PC on the same LAN as the router (for the agent)
-- Optional: Supabase project (API works with an in-memory store for local milestone 1)
 
 ## Quick start
 
@@ -44,16 +41,13 @@ cd Wifi_manager
 npm install
 npm run build:shared
 
-# Terminal 1 — API
+# Terminal 1 — API + Web
 cp apps/api/.env.example apps/api/.env
-npm run dev:api
+npm run dev
 
-# Terminal 2 — Web
-npm run dev:web
-
-# Terminal 3 — Agent (on LAN with the router)
+# Terminal 2 — Agent (on LAN with the router)
 cp apps/agent/.env.example apps/agent/.env
-# Edit MIKROTIK_* credentials
+# Edit ROUTER_* credentials
 npm run dev:agent
 ```
 
@@ -67,15 +61,14 @@ See root `.env.example` and per-app `.env.example` files.
 | Variable | Where | Purpose |
 |----------|-------|---------|
 | `AGENT_SHARED_SECRET` | API + Agent | Shared secret for agent registration |
-| `DEV_AUTH_BYPASS` | API | Skip JWT in local development |
-| `MIKROTIK_HOST/USER/PASSWORD` | Agent | Local RouterOS REST credentials |
-| `SUPABASE_*` | API / Web | Optional cloud DB + auth |
+| `DEV_AUTH_BYPASS` | API | Skip sign-in in local development |
+| `ROUTER_HOST/USER/PASSWORD` | Agent | Local router REST credentials |
 
 ## Deploy to Vercel (web + API together)
 
 See [docs/vercel-deploy.md](docs/vercel-deploy.md).
 
-You do **not** need a separate API host. Vercel serves the dashboard and `/api/v1` on the same URL. Run only the **local agent** on your LAN and point `BACKEND_URL` at your Vercel site.
+You do **not** need a separate API host. Vercel serves the dashboard and `/api/v1` on the same URL. Run only the **local agent** on your LAN and point `BACKEND_URL` at your public site.
 
 ## Documentation
 
@@ -83,12 +76,10 @@ You do **not** need a separate API host. Vercel serves the dashboard and `/api/v
 - [API](docs/api.md)
 - [Router setup](docs/router-setup.md)
 - [Vercel deploy](docs/vercel-deploy.md)
+- [Run commands](docs/run.md)
 
 ## Security notes
 
-- Never expose RouterOS REST to the internet.
-- Use a dedicated least-privilege RouterOS user for the agent.
-- Do not put the Supabase service-role key in the frontend.
+- Never expose your router management API to the internet.
+- Use a dedicated least-privilege router user for the agent.
 - Milestone 1 does not apply firewall / wireless deny rules yet.
-
-# ManageMyWifi

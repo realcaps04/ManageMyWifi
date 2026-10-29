@@ -45,4 +45,4 @@ Authenticated with header `X-Agent-Token` (except register).
 
 ## Auth (dev)
 
-With `DEV_AUTH_BYPASS=true` (default in `.env.example`), user routes skip JWT. Production must use Supabase Auth bearer tokens.
+With `DEV_AUTH_BYPASS=true` (default in `.env.example`), user routes skip sign-in. Otherwise use the WiFi portal session from `POST /auth/login`.

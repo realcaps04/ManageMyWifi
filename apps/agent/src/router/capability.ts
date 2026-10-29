@@ -1,5 +1,5 @@
 import type { WirelessStack } from "@wifi-control/shared-types";
-import { MikroTikClient, MikroTikError } from "./mikrotik-client";
+import { RouterClient, RouterError } from "./router-client";
 import { logger } from "../utils/logger";
 
 export interface RouterCapabilities {
@@ -31,7 +31,7 @@ function parseUptime(uptime: string | undefined): number | null {
 }
 
 export async function detectCapabilities(
-  client: MikroTikClient
+  client: RouterClient
 ): Promise<RouterCapabilities> {
   const resource = await client.get<Record<string, string>>("/system/resource");
   const identity = await client
@@ -50,7 +50,7 @@ export async function detectCapabilities(
     await client.get("/interface/wifi/registration-table");
     wirelessStack = "wifi";
   } catch (err) {
-    if (err instanceof MikroTikError && err.status === 404) {
+    if (err instanceof RouterError && err.status === 404) {
       try {
         await client.get("/interface/wireless/registration-table");
         wirelessStack = "wireless";

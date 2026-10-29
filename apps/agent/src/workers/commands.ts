@@ -1,6 +1,6 @@
 import type { CommandQueueItem, CommandType } from "@wifi-control/shared-types";
 import { BackendClient } from "../services/backend-client";
-import { MikroTikClient } from "../router/mikrotik-client";
+import { RouterClient } from "../router/router-client";
 import type { SyncService } from "../services/sync";
 import {
   blockAddressFirewall,
@@ -31,7 +31,7 @@ const ALLOWED: ReadonlySet<CommandType> = new Set([
 
 export async function pollAndProcessCommands(
   backend: BackendClient,
-  router: MikroTikClient,
+  router: RouterClient,
   sync: SyncService
 ) {
   const { data } = await backend.getCommands();
@@ -42,7 +42,7 @@ export async function pollAndProcessCommands(
 
 async function processCommand(
   backend: BackendClient,
-  router: MikroTikClient,
+  router: RouterClient,
   sync: SyncService,
   cmd: CommandQueueItem
 ) {
@@ -82,7 +82,7 @@ async function processCommand(
       throw new Error("Command missing device identity (mac/ip)");
     }
 
-    // Prefer IP for firewall/queues; fall back to MAC where RouterOS accepts it
+    // Prefer IP for firewall/queues; fall back to MAC where the router accepts it
     const addressTarget = ip || mac;
 
     let verified = false;

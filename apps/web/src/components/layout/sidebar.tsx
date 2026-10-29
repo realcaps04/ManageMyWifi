@@ -37,8 +37,8 @@ export function Sidebar() {
           <Radio className="h-4 w-4" />
         </div>
         <div>
-          <div className="text-sm font-semibold tracking-tight">WiFi Control</div>
-          <div className="text-[11px] text-muted">Network Manager</div>
+          <div className="text-sm font-semibold tracking-tight">ManageMyWifi</div>
+          <div className="text-[11px] text-muted">WiFi Manager</div>
         </div>
       </div>
       <nav className="flex-1 overflow-y-auto px-2 py-3">

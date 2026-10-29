@@ -1,75 +1,46 @@
-# MikroTik Router Setup
+# Router setup (local agent)
 
-Hardware model is **not assumed**. The agent detects capabilities at runtime (`/interface/wifi` vs `/interface/wireless`) and reports `wireless_stack`.
+Hardware brand is **not assumed**. The agent detects capabilities at runtime and reports a `wireless_stack`.
 
-## 1. Enable RouterOS REST API (v7)
+## 1. Enable the router’s LAN management / REST API
 
-In Winbox / WebFig / CLI:
+On your WiFi router (admin UI or CLI):
 
-1. Ensure the router has a reachable LAN IP (default often `192.168.88.1`).
-2. Enable **www-ssl** (or www) service for REST:
-   ```
-   /ip service
-   set www-ssl disabled=no
-   ```
-3. Prefer HTTPS on port 443. If using a self-signed cert, set `MIKROTIK_TLS_INSECURE=true` on the agent (LAN only).
+1. Note the LAN gateway IP (often `192.168.1.1` or `192.168.88.1`).
+2. Enable the HTTPS / REST management service on the LAN.
+3. Prefer HTTPS. Self-signed certs are fine — turn on “Allow self-signed HTTPS” in website Settings.
 
-REST paths look like: `https://<router>/rest/system/resource`
+## 2. Create a least-privilege API user (recommended)
 
-## 2. Create a least-privilege API user
+Do **not** use the full admin account in production when you can avoid it. Create a dedicated user with read (and later limited write) access for discovery and control.
 
-Do **not** use the full admin account in production.
+## 3. Enter details in the website (for end users)
 
-```
-/user group add name=wifi-control policy=read,api,rest-api,!local,!telnet,!ssh,!ftp,!reboot,!write,!policy,!test,!winbox,!password,!web,!sniff,!sensitive,!romon
-/user add name=wifi-control group=wifi-control password="<strong-password>" address=192.168.88.0/24
-```
+Users only see the ManageMyWifi frontend. They should **not** edit `.env` files.
 
-For milestone 1 (read-only discovery), `read` + `rest-api` is enough.  
-Later (block / suspend / queues) you will need limited `write` on specific resources — still not full admin.
+1. Sign in → **Settings → Connect your router**
+2. Enter gateway IP, username, and password → Save
+3. On a PC connected to that WiFi, run the agent with only the API URL + shared secret
 
-Adjust `address=` to the subnet of the machine running the agent.
+The agent pulls router credentials from the API automatically.
 
-## 3. Verify from the agent host
+## 4. Agent on the LAN PC
 
-From the LAN machine that will run the agent:
-
-```bash
-curl -k -u wifi-control:<password> https://192.168.88.1/rest/system/resource
-```
-
-You should receive JSON with `version`, `board-name`, `cpu-load`, etc.
-
-## 4. Wireless stacks
-
-| Stack | Typical paths |
-|-------|----------------|
-| `wifi` (wifiwave2 / wifi package) | `/interface/wifi/registration-table` |
-| `wireless` (legacy) | `/interface/wireless/registration-table` |
-
-If neither exists (wired-only or CAPsMAN-only setups), the agent still syncs DHCP leases and reports `wireless_stack: unknown`.
-
-## 5. Agent configuration
-
-`apps/agent/.env`:
+`apps/agent/.env` (developer / installer only):
 
 ```
-MIKROTIK_HOST=192.168.88.1
-MIKROTIK_PORT=443
-MIKROTIK_USER=wifi-control
-MIKROTIK_PASSWORD=...
-MIKROTIK_TLS_INSECURE=true
-BACKEND_URL=http://<api-host>:4000/api/v1
-AGENT_SHARED_SECRET=<same as API>
+BACKEND_URL=https://your-app.example/api/v1
+AGENT_SHARED_SECRET=<same as server>
+AGENT_NAME=local-agent
 NETWORK_ID=00000000-0000-4000-8000-000000000001
 ```
 
-## 6. Run as a service (later)
+```powershell
+npm run dev:agent
+```
 
-After milestone 1 verification, install the agent as a Windows service or systemd unit so it starts on boot. Keep credentials out of source control (`apps/agent/data/agent-credentials.json` is gitignored).
+## 5. Public website + home WiFi
 
-## 7. Recovery notes
-
-- If the agent disconnects, the dashboard shows agent **offline**; existing router config is untouched.
-- Admin self-lockout protections (never suspend the operator’s current MAC without confirmation) land with control features.
-- Application-managed rules will use the `wifi-control:` namespace / comment prefix and must not delete unrelated firewall entries.
+1. Deploy web + API publicly.
+2. Users configure the router in **Settings**.
+3. Someone on the LAN runs the agent pointed at the public API.

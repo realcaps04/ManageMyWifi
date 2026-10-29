@@ -10,7 +10,7 @@ Browser  →  Vercel (web + /api/v1)
                  ↑
 Local agent (on your LAN) posts device sync / heartbeats
                  ↓
-            MikroTik router
+            Your WiFi router
 ```
 
 ## 1. Vercel project settings
@@ -40,16 +40,12 @@ Check API health: `https://your-app.vercel.app/api/health`
 
 ## 3. Point the local agent at Vercel
 
-On the PC next to your MikroTik (`apps/agent/.env`):
+On a PC on your WiFi LAN (`apps/agent/.env`):
 
 ```
 BACKEND_URL=https://your-app.vercel.app/api/v1
 AGENT_SHARED_SECRET=<same as Vercel>
 NETWORK_ID=00000000-0000-4000-8000-000000000001
-MIKROTIK_HOST=192.168.1.1
-MIKROTIK_USER=wifi-control
-MIKROTIK_PASSWORD=<router password>
-MIKROTIK_TLS_INSECURE=true
 ```
 
 Then:
@@ -59,11 +55,13 @@ cd E:\Wifi_manager
 npm run dev:agent
 ```
 
-## 4. Sign in on the website
+## 4. Sign in and connect the router in the UI
 
-Open your Vercel URL → enter the **WiFi name** and **password** you set in Vercel env vars.
+1. Open your Vercel URL → sign in with WiFi name / password.
+2. Go to **Settings → Connect your router** and enter gateway IP + router login.
+3. The LAN agent downloads those details and syncs devices.
 
 ## Notes
 
-- Serverless memory resets on cold starts. For always-on durable storage later, add Supabase (`SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY`).
-- Never put MikroTik credentials in Vercel — only on the LAN agent machine.
+- Serverless memory resets on cold starts (in-memory store).
+- Router passwords are entered in the website Settings and pulled by the agent — users do not edit `.env` for router credentials.

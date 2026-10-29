@@ -23,7 +23,7 @@ routerStatusRouter.get("/interfaces", (_req, res) => {
     available: networks.length > 0,
     message:
       networks.length === 0
-        ? "No WiFi interfaces reported yet. Start the local agent with a reachable MikroTik."
+        ? "No WiFi interfaces reported yet. Start the local agent with a reachable router."
         : undefined,
   });
 });

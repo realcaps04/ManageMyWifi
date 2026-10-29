@@ -1,5 +1,5 @@
 import type { WirelessStack } from "@wifi-control/shared-types";
-import { MikroTikClient } from "../router/mikrotik-client";
+import { RouterClient } from "../router/router-client";
 import { detectCapabilities, type RouterCapabilities } from "../router/capability";
 import { fetchDhcpLeases } from "../router/dhcp";
 import { discoverWifiClients } from "../router/wifi-clients";
@@ -12,7 +12,7 @@ export class SyncService {
   private wirelessStack: WirelessStack = "unknown";
 
   constructor(
-    private router: MikroTikClient,
+    private router: RouterClient,
     private backend: BackendClient
   ) {}
 

@@ -1,4 +1,4 @@
-import { MikroTikClient } from "./mikrotik-client";
+import { RouterClient } from "./router-client";
 import {
   ADDRESS_LIST_BLOCK,
   ADDRESS_LIST_SUSPEND,
@@ -6,7 +6,7 @@ import {
 } from "../security/allowlist";
 import { logger } from "../utils/logger";
 
-async function listEntries(client: MikroTikClient, list: string) {
+async function listEntries(client: RouterClient, list: string) {
   const rows = await client.get<Record<string, string>[]>(
     `/ip/firewall/address-list?list=${encodeURIComponent(list)}`
   );
@@ -14,7 +14,7 @@ async function listEntries(client: MikroTikClient, list: string) {
 }
 
 async function ensureAddressListEntry(
-  client: MikroTikClient,
+  client: RouterClient,
   list: string,
   address: string,
   comment: string
@@ -39,7 +39,7 @@ async function ensureAddressListEntry(
 }
 
 async function removeAddressListEntry(
-  client: MikroTikClient,
+  client: RouterClient,
   list: string,
   address: string,
   commentMarker: string
@@ -59,7 +59,7 @@ async function removeAddressListEntry(
 }
 
 /** Ensure drop rules for managed address lists exist (idempotent). */
-export async function ensureManagedFirewallRules(client: MikroTikClient) {
+export async function ensureManagedFirewallRules(client: RouterClient) {
   const rules = await client.get<Record<string, string>[]>(
     "/ip/firewall/filter"
   );
@@ -85,7 +85,7 @@ export async function ensureManagedFirewallRules(client: MikroTikClient) {
 }
 
 export async function suspendAddress(
-  client: MikroTikClient,
+  client: RouterClient,
   address: string,
   deviceId: string
 ) {
@@ -101,7 +101,7 @@ export async function suspendAddress(
 }
 
 export async function resumeAddress(
-  client: MikroTikClient,
+  client: RouterClient,
   address: string,
   deviceId: string
 ) {
@@ -116,7 +116,7 @@ export async function resumeAddress(
 }
 
 export async function blockAddressFirewall(
-  client: MikroTikClient,
+  client: RouterClient,
   address: string,
   deviceId: string
 ) {
@@ -132,7 +132,7 @@ export async function blockAddressFirewall(
 }
 
 export async function unblockAddressFirewall(
-  client: MikroTikClient,
+  client: RouterClient,
   address: string,
   deviceId: string
 ) {

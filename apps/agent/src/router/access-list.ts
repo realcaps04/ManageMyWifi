@@ -1,5 +1,5 @@
 import type { WirelessStack } from "@wifi-control/shared-types";
-import { MikroTikClient } from "./mikrotik-client";
+import { RouterClient } from "./router-client";
 import { RULE_NAMESPACE } from "../security/allowlist";
 import { logger } from "../utils/logger";
 
@@ -8,7 +8,7 @@ function normMac(mac: string) {
 }
 
 async function listAccessEntries(
-  client: MikroTikClient,
+  client: RouterClient,
   stack: WirelessStack
 ): Promise<Record<string, string>[]> {
   const path =
@@ -41,7 +41,7 @@ function accessPath(stack: WirelessStack) {
 }
 
 export async function denyWifiMac(
-  client: MikroTikClient,
+  client: RouterClient,
   stack: WirelessStack,
   mac: string,
   deviceId: string
@@ -83,7 +83,7 @@ export async function denyWifiMac(
 }
 
 export async function allowWifiMac(
-  client: MikroTikClient,
+  client: RouterClient,
   stack: WirelessStack,
   mac: string,
   deviceId: string
@@ -109,7 +109,7 @@ export async function allowWifiMac(
 }
 
 export async function disconnectWifiClient(
-  client: MikroTikClient,
+  client: RouterClient,
   stack: WirelessStack,
   mac: string
 ) {
@@ -121,11 +121,11 @@ export async function disconnectWifiClient(
 
   let rows: Record<string, string>[] = [];
   try {
-    rows = await client.get(regPath);
+    rows = (await client.get(regPath)) as Record<string, string>[];
   } catch {
-    rows = await client
+    rows = (await client
       .get("/interface/wireless/registration-table")
-      .catch(() => []);
+      .catch(() => [])) as Record<string, string>[];
   }
   if (!Array.isArray(rows)) rows = [];
 

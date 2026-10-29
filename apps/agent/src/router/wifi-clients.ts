@@ -1,5 +1,5 @@
 import type { DiscoveredDevice, WirelessStack } from "@wifi-control/shared-types";
-import { MikroTikClient } from "./mikrotik-client";
+import { RouterClient } from "./router-client";
 import type { DhcpLease } from "./dhcp";
 import { logger } from "../utils/logger";
 
@@ -66,7 +66,7 @@ function mapRegistration(
 }
 
 export async function discoverWifiClients(
-  client: MikroTikClient,
+  client: RouterClient,
   stack: WirelessStack,
   leases: DhcpLease[]
 ): Promise<DiscoveredDevice[]> {

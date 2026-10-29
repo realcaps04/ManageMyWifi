@@ -1,4 +1,4 @@
-import { MikroTikClient } from "./mikrotik-client";
+import { RouterClient } from "./router-client";
 
 export interface DhcpLease {
   id?: string;
@@ -19,7 +19,7 @@ function normMac(mac: string | null | undefined): string | null {
 }
 
 export async function fetchDhcpLeases(
-  client: MikroTikClient
+  client: RouterClient
 ): Promise<DhcpLease[]> {
   const rows = await client.get<Record<string, string>[]>(
     "/ip/dhcp-server/lease"

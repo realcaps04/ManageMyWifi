@@ -84,6 +84,18 @@ export class BackendClient {
     return this.request<{ data: CommandQueueItem[] }>("GET", "/agent/commands");
   }
 
+  getRouterConnection() {
+    return this.request<{
+      host: string;
+      port: number;
+      user: string;
+      password: string;
+      tls_insecure: boolean;
+      updated_at: string | null;
+      configured: boolean;
+    }>("GET", "/agent/router-connection");
+  }
+
   reportCommandResult(
     id: string,
     result: {

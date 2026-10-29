@@ -46,7 +46,7 @@ devicesRouter.get("/:id", (req, res) => {
 devicesRouter.get("/:id/history", (req, res) => {
   const device = memoryStore.getDevice(req.params.id);
   if (!device) return res.status(404).json({ error: "Device not found" });
-  // Session history persisted in Supabase in later milestone
+  // Session history not persisted in memory mode
   res.json({ data: [], available: false });
 });
 

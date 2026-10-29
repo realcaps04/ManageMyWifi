@@ -50,7 +50,7 @@ export function NetworkPage() {
               }
             />
             <Row label="Model" value={r?.model || "—"} />
-            <Row label="RouterOS" value={r?.routeros_version || "—"} />
+            <Row label="Firmware" value={r?.routeros_version || "—"} />
             <Row label="Wireless stack" value={r?.wireless_stack || "—"} />
             <Row
               label="CPU"

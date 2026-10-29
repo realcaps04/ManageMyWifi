@@ -10,7 +10,6 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.49.1",
     "@wifi-control/shared-types": "*",
     "@wifi-control/validation": "*",
     "cors": "^2.8.5",

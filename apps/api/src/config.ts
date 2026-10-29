@@ -10,14 +10,13 @@ const envSchema = z.object({
   API_HOST: z.string().default("0.0.0.0"),
   API_PORT: z.coerce.number().default(4000),
   CORS_ORIGINS: z.string().default("http://localhost:5173"),
-  SUPABASE_URL: z.string().url().optional(),
-  SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
-  SUPABASE_ANON_KEY: z.string().optional(),
   AGENT_SHARED_SECRET: z.string().min(8).default("dev-agent-shared-secret"),
   SESSION_SECRET: z.string().min(8).optional(),
-  /** WiFi portal sign-in — SSID name users must enter */
+  /**
+   * Optional bootstrap only: one SSID→password pair used when the agent has not
+   * synced that network’s key yet. Per-network keys from the router take priority.
+   */
   WIFI_LOGIN_SSID: z.string().optional(),
-  /** WiFi portal sign-in — shared verification password */
   WIFI_LOGIN_PASSWORD: z.string().optional(),
   DEV_NETWORK_ID: z.string().uuid().optional(),
   DEV_AUTH_BYPASS: z
@@ -34,7 +33,3 @@ if (!parsed.success) {
 }
 
 export const env = parsed.data;
-
-export const supabaseConfigured = Boolean(
-  env.SUPABASE_URL && env.SUPABASE_SERVICE_ROLE_KEY
-);

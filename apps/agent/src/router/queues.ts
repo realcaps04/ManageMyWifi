@@ -1,4 +1,4 @@
-import { MikroTikClient } from "./mikrotik-client";
+import { RouterClient } from "./router-client";
 import { QUEUE_PREFIX, RULE_NAMESPACE } from "../security/allowlist";
 
 function queueName(deviceId: string) {
@@ -6,12 +6,12 @@ function queueName(deviceId: string) {
 }
 
 function rate(mbps: number) {
-  // RouterOS prefers bits; use M suffix for Mbps
+  // Router queue units: prefer bits; use M suffix for Mbps
   return `${mbps}M`;
 }
 
 export async function setSimpleQueue(
-  client: MikroTikClient,
+  client: RouterClient,
   opts: {
     deviceId: string;
     target: string;
@@ -46,7 +46,7 @@ export async function setSimpleQueue(
 }
 
 export async function removeSimpleQueue(
-  client: MikroTikClient,
+  client: RouterClient,
   deviceId: string
 ) {
   const name = queueName(deviceId);

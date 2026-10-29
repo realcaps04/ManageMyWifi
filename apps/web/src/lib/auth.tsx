@@ -18,7 +18,11 @@ interface Session {
 interface AuthContextValue {
   session: Session | null;
   loading: boolean;
-  login: (ssid: string, password: string) => Promise<void>;
+  login: (
+    ssid: string,
+    password: string,
+    opts?: { use_connection_check?: boolean; device_online?: boolean }
+  ) => Promise<void>;
   logout: () => void;
 }
 
@@ -57,13 +61,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
   }, [session?.token]);
 
-  const login = useCallback(async (ssid: string, password: string) => {
-    const result = await api.wifiLogin(ssid, password);
-    const next = { token: result.token, ssid: result.ssid };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-    setAuthToken(next.token);
-    setSession(next);
-  }, []);
+  const login = useCallback(
+    async (
+      ssid: string,
+      password: string,
+      opts?: { use_connection_check?: boolean; device_online?: boolean }
+    ) => {
+      const result = await api.wifiLogin(ssid, password, opts);
+      const next = { token: result.token, ssid: result.ssid };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      setAuthToken(next.token);
+      setSession(next);
+    },
+    []
+  );
 
   const logout = useCallback(() => {
     localStorage.removeItem(STORAGE_KEY);

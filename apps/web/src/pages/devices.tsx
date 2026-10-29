@@ -39,7 +39,7 @@ export function DevicesPage() {
           <div>
             <CardTitle>Connected Devices</CardTitle>
             <p className="mt-0.5 text-sm text-muted">
-              Live inventory from the local MikroTik agent (WiFi clients + DHCP
+              Live inventory from your local network agent (WiFi clients + DHCP
               leases).
             </p>
           </div>
@@ -108,7 +108,7 @@ export function DevicesPage() {
               <p className="mt-3 text-sm font-medium">No devices found</p>
               <p className="mx-auto mt-1 max-w-md text-sm text-muted">
                 When the agent successfully syncs, real WiFi clients and DHCP
-                leases from your MikroTik will appear here. No mock devices are
+                leases from your router will appear here. No mock devices are
                 shown.
               </p>
             </div>

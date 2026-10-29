@@ -33,7 +33,7 @@ agentRouter.post(
       body.network_id !== memoryStore.network.id &&
       env.NODE_ENV === "production"
     ) {
-      // In production with Supabase, validate network exists — memory mode uses fixed id
+      // Memory mode uses a fixed network id
     }
 
     // Re-register by name: revoke old token for same name
@@ -85,6 +85,11 @@ agentRouter.get("/commands", requireAgent, (req: AuthedRequest, res) => {
     cmd.updated_at = new Date().toISOString();
   }
   res.json({ data: commands });
+});
+
+/** Full router credentials for the LAN agent (never expose to browsers). */
+agentRouter.get("/router-connection", requireAgent, (_req, res) => {
+  res.json(memoryStore.getRouterConnectionForAgent());
 });
 
 agentRouter.post(

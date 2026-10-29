@@ -3,7 +3,7 @@ import cors from "cors";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import pinoHttp from "pino-http";
-import { env, supabaseConfigured } from "./config";
+import { env } from "./config";
 import { logger } from "./logger";
 import { memoryStore } from "./db/memory-store";
 import { agentRouter } from "./routes/agent";
@@ -63,8 +63,8 @@ export function createApp() {
   const health = (_req: express.Request, res: express.Response) => {
     res.json({
       ok: true,
-      service: "wifi-control-api",
-      storage: supabaseConfigured ? "supabase" : "memory",
+      service: "managemywifi-api",
+      storage: "memory",
       network_id: memoryStore.network.id,
       network_name: memoryStore.network.name,
     });

@@ -1,4 +1,4 @@
-import { env, supabaseConfigured } from "./config";
+import { env } from "./config";
 import { logger } from "./logger";
 import { memoryStore } from "./db/memory-store";
 import { createApp } from "./app";
@@ -12,11 +12,11 @@ if (!process.env.VERCEL) {
       {
         host: env.API_HOST,
         port: env.API_PORT,
-        storage: supabaseConfigured ? "supabase" : "memory (dev)",
+        storage: "memory",
         networkId: memoryStore.network.id,
         networkName: memoryStore.network.name,
       },
-      "WiFi Control API listening"
+      "ManageMyWifi API listening"
     );
   });
 }

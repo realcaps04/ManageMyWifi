@@ -1,4 +1,4 @@
-/** Shared domain types for WiFi Control monorepo */
+/** Shared domain types for ManageMyWifi monorepo */
 
 export type Uuid = string;
 
@@ -250,6 +250,8 @@ export interface WifiNetworkInfo {
   disabled: boolean;
   mode: string | null;
   clients: number;
+  /** Wi‑Fi PSK from router security profile (agent→API only; never send to browsers) */
+  passphrase?: string | null;
 }
 
 export interface AgentSyncRequest {

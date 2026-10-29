@@ -1,10 +1,21 @@
 import { config as loadEnv } from "dotenv";
 import { resolve } from "path";
 import { z } from "zod";
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from "fs";
+import {
+  readFileSync,
+  writeFileSync,
+  mkdirSync,
+  existsSync,
+  unlinkSync,
+} from "fs";
 
 loadEnv({ path: resolve(process.cwd(), ".env") });
 loadEnv({ path: resolve(process.cwd(), "../../.env") });
+
+/** Prefer ROUTER_*; accept legacy MIKROTIK_* if present. */
+function routerEnv(key: "HOST" | "PORT" | "USER" | "PASSWORD" | "TLS_INSECURE") {
+  return process.env[`ROUTER_${key}`] ?? process.env[`MIKROTIK_${key}`];
+}
 
 const envSchema = z.object({
   BACKEND_URL: z.string().url().default("http://localhost:4000/api/v1"),
@@ -16,11 +27,11 @@ const envSchema = z.object({
     .default("00000000-0000-4000-8000-000000000001"),
   AGENT_ID: z.string().optional(),
   AGENT_TOKEN: z.string().optional(),
-  MIKROTIK_HOST: z.string().default("192.168.1.1"),
-  MIKROTIK_PORT: z.coerce.number().default(443),
-  MIKROTIK_USER: z.string().default("wifi-control"),
-  MIKROTIK_PASSWORD: z.string().default(""),
-  MIKROTIK_TLS_INSECURE: z
+  ROUTER_HOST: z.string().default("192.168.1.1"),
+  ROUTER_PORT: z.coerce.number().default(443),
+  ROUTER_USER: z.string().default("wifi-control"),
+  ROUTER_PASSWORD: z.string().default(""),
+  ROUTER_TLS_INSECURE: z
     .string()
     .optional()
     .transform((v) => v === "true" || v === "1"),
@@ -29,7 +40,16 @@ const envSchema = z.object({
   COMMAND_POLL_INTERVAL_MS: z.coerce.number().default(5_000),
 });
 
-const parsed = envSchema.safeParse(process.env);
+const parsed = envSchema.safeParse({
+  ...process.env,
+  ROUTER_HOST: routerEnv("HOST") ?? process.env.ROUTER_HOST,
+  ROUTER_PORT: routerEnv("PORT") ?? process.env.ROUTER_PORT,
+  ROUTER_USER: routerEnv("USER") ?? process.env.ROUTER_USER,
+  ROUTER_PASSWORD: routerEnv("PASSWORD") ?? process.env.ROUTER_PASSWORD,
+  ROUTER_TLS_INSECURE:
+    routerEnv("TLS_INSECURE") ?? process.env.ROUTER_TLS_INSECURE,
+});
+
 if (!parsed.success) {
   console.error("Invalid agent environment:", parsed.error.flatten().fieldErrors);
   process.exit(1);
@@ -37,7 +57,7 @@ if (!parsed.success) {
 
 export const env = {
   ...parsed.data,
-  MIKROTIK_TLS_INSECURE: parsed.data.MIKROTIK_TLS_INSECURE ?? true,
+  ROUTER_TLS_INSECURE: parsed.data.ROUTER_TLS_INSECURE ?? true,
 };
 
 const dataDir = resolve(process.cwd(), "data");
@@ -68,6 +88,14 @@ export function loadStoredCredentials(): StoredCredentials | null {
 export function saveCredentials(creds: StoredCredentials) {
   if (!existsSync(dataDir)) mkdirSync(dataDir, { recursive: true });
   writeFileSync(credPath, JSON.stringify(creds, null, 2), "utf8");
+}
+
+export function clearStoredCredentials() {
+  try {
+    if (existsSync(credPath)) unlinkSync(credPath);
+  } catch {
+    /* ignore */
+  }
 }
 
 export const AGENT_VERSION = "0.1.0";

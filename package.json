@@ -2,7 +2,7 @@
   "name": "wifi-control",
   "version": "0.1.0",
   "private": true,
-  "description": "MikroTik WiFi Network Management Platform",
+  "description": "ManageMyWifi — public WiFi network management platform",
   "workspaces": [
     "apps/*",
     "packages/*"

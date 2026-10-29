@@ -1,7 +1,6 @@
 /**
- * In-memory store used when Supabase is not configured.
- * Enables local agent ↔ API ↔ web development without a cloud project.
- * Clearly labeled as development-only — not for production.
+ * In-memory store for local agent ↔ API ↔ web development.
+ * Data resets on process restart — suitable for local testing and Vercel warm invocations.
  */
 
 import { randomUUID, createHash } from "crypto";
@@ -43,10 +42,10 @@ export class MemoryStore {
   router: Router = {
     id: randomUUID(),
     network_id: "",
-    name: "MikroTik",
+    name: "Router",
     model: null,
     routeros_version: null,
-    host: process.env.MIKROTIK_HOST || "192.168.1.1",
+    host: process.env.ROUTER_HOST || process.env.MIKROTIK_HOST || "192.168.1.1",
     status: "unknown",
     last_seen_at: null,
     cpu_load: null,
@@ -65,14 +64,110 @@ export class MemoryStore {
   agentTokens = new Map<string, string>(); // token -> agentId
   wifiNetworks: WifiNetworkInfo[] = [];
 
-  /** Portal credentials for web sign-in (SSID + verification password) */
-  portal: { ssid: string | null; password: string | null } = {
-    ssid: process.env.WIFI_LOGIN_SSID || null,
-    password: process.env.WIFI_LOGIN_PASSWORD || null,
+  /** Router LAN credentials set from the website (agent pulls these). */
+  routerConnection: {
+    host: string;
+    port: number;
+    user: string;
+    password: string;
+    tls_insecure: boolean;
+    updated_at: string | null;
+  } = {
+    host:
+      process.env.ROUTER_HOST ||
+      process.env.MIKROTIK_HOST ||
+      "192.168.1.1",
+    port: Number(process.env.ROUTER_PORT || process.env.MIKROTIK_PORT || 443),
+    user:
+      process.env.ROUTER_USER ||
+      process.env.MIKROTIK_USER ||
+      "admin",
+    password:
+      process.env.ROUTER_PASSWORD ||
+      process.env.MIKROTIK_PASSWORD ||
+      "",
+    tls_insecure:
+      (process.env.ROUTER_TLS_INSECURE ||
+        process.env.MIKROTIK_TLS_INSECURE ||
+        "true") !== "false",
+    updated_at: null,
   };
+
+  /**
+   * Per-network portal overrides (ssid lowercased → Wi‑Fi password).
+   * Used when the agent cannot read the router passphrase, or for bootstrap.
+   * Live router SSIDs + passphrases always take precedence when present.
+   */
+  portal: {
+    /** @deprecated single-SSID mode — migrated into credentials */
+    ssid: string | null;
+    password: string | null;
+    /** ssid (lower) → password override for that network */
+    credentials: Record<string, string>;
+  } = (() => {
+    const ssid = process.env.WIFI_LOGIN_SSID || null;
+    const password = process.env.WIFI_LOGIN_PASSWORD || null;
+    const credentials: Record<string, string> = {};
+    if (ssid && password) credentials[ssid.trim().toLowerCase()] = password;
+    return { ssid, password, credentials };
+  })();
 
   constructor() {
     this.router.network_id = this.network.id;
+    this.router.host = this.routerConnection.host;
+  }
+
+  getRouterConnectionPublic() {
+    const c = this.routerConnection;
+    return {
+      host: c.host,
+      port: c.port,
+      user: c.user,
+      password_set: Boolean(c.password),
+      tls_insecure: c.tls_insecure,
+      updated_at: c.updated_at,
+      configured: Boolean(c.host && c.user && c.password),
+    };
+  }
+
+  getRouterConnectionForAgent() {
+    const c = this.routerConnection;
+    return {
+      host: c.host,
+      port: c.port,
+      user: c.user,
+      password: c.password,
+      tls_insecure: c.tls_insecure,
+      updated_at: c.updated_at,
+      configured: Boolean(c.host && c.user && c.password),
+    };
+  }
+
+  setRouterConnection(input: {
+    host: string;
+    port?: number;
+    user: string;
+    password?: string;
+    tls_insecure?: boolean;
+  }) {
+    const host = input.host.trim();
+    const user = input.user.trim();
+    if (!host || !user) {
+      throw new Error("Router host and username are required");
+    }
+    this.routerConnection.host = host;
+    this.routerConnection.port = input.port ?? this.routerConnection.port;
+    this.routerConnection.user = user;
+    if (input.password !== undefined && input.password !== "") {
+      this.routerConnection.password = input.password;
+    }
+    if (input.tls_insecure !== undefined) {
+      this.routerConnection.tls_insecure = input.tls_insecure;
+    }
+    this.routerConnection.updated_at = nowIso();
+    this.router.host = host;
+    this.router.updated_at = nowIso();
+    return this.getRouterConnectionPublic();
   }
 
   registerAgent(input: {
@@ -160,6 +255,7 @@ export class MemoryStore {
         disabled: Boolean(n.disabled),
         mode: n.mode ?? null,
         clients: n.clients ?? 0,
+        passphrase: n.passphrase ?? null,
       }));
     }
 
@@ -328,7 +424,10 @@ export class MemoryStore {
         upload_bps: null,
         daily_bandwidth_bytes: null,
       },
-      wifi_networks: this.wifiNetworks,
+      // Never expose Wi‑Fi passphrases to the browser
+      wifi_networks: this.wifiNetworks.map(
+        ({ passphrase: _passphrase, ...rest }) => rest
+      ),
     };
   }
 
@@ -376,10 +475,7 @@ export class MemoryStore {
   }
 }
 
-/**
- * Reuse one store across warm Vercel serverless invocations.
- * For durable production data, configure Supabase.
- */
+/** Reuse one store across warm Vercel serverless invocations. */
 const globalStore = globalThis as typeof globalThis & {
   __wifiControlStore?: MemoryStore;
 };
