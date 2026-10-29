@@ -85,6 +85,7 @@ async function refreshRouterConfig(
         user: remote.user,
         password: remote.password,
         tls_insecure: remote.tls_insecure,
+        use_https: remote.use_https ?? true,
       });
       if (changed) {
         logger.info(

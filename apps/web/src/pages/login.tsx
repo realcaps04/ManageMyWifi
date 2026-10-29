@@ -17,12 +17,13 @@ import { PasswordInput } from "@/components/ui/password-input";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { StatusDot } from "@/components/ui/status-dot";
 import { StatusPopup } from "@/components/ui/status-popup";
+import { readLastSsid, savePortalCookie } from "@/lib/persist-client";
 
 type ConnectionResult = Awaited<ReturnType<typeof api.checkWifiConnection>>;
 
 export function LoginPage() {
   const { session, loading, login } = useAuth();
-  const [ssid, setSsid] = useState("");
+  const [ssid, setSsid] = useState(() => readLastSsid() || "");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -114,6 +115,7 @@ export function LoginPage() {
       } else {
         await login(ssid.trim(), password);
       }
+      savePortalCookie(ssid.trim(), password);
     } catch (err) {
       setError(
         err instanceof ApiError

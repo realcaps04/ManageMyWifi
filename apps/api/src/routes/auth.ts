@@ -245,27 +245,19 @@ authRouter.post("/login", validateBody(loginSchema), (req, res) => {
   const live = liveSyncedSsids();
 
   if (!cred.password) {
-    // Bootstrap: nothing configured yet → first sign-in registers that network’s credentials
-    if (!anyPasswordAvailable()) {
-      if (live.length > 0 && !live.some((s) => s.toLowerCase() === ssid.toLowerCase())) {
-        return res.status(401).json({
-          error: `Unknown WiFi name “${ssid}”. Choose a SSID synced from your router.`,
-        });
-      }
-      memoryStore.portal.ssid = ssid;
-      memoryStore.portal.password = password;
-      memoryStore.portal.credentials[ssid.toLowerCase()] = password;
-      logger.info({ ssid }, "Bootstrapped network WiFi credentials");
-    } else if (!cred.ssidKnown && live.length > 0) {
+    // No key stored for this SSID yet — enroll using the password they just typed
+    // (same as the real WiFi password). Avoids chicken-and-egg with Settings.
+    const onLiveList = live.some(
+      (s) => s.toLowerCase() === ssid.toLowerCase()
+    );
+    if (live.length > 0 && !onLiveList && !cred.ssidKnown) {
       logger.warn({ ssid }, "WiFi login failed: unknown SSID");
       return res.status(401).json({
         error: `Unknown WiFi name “${ssid}”. Use one of the networks on this router, or wait for the agent to sync.`,
       });
-    } else {
-      return res.status(503).json({
-        error: `WiFi key for “${ssid}” is not available yet. Start the agent so keys sync from your router, or set this network’s password in Settings.`,
-      });
     }
+    memoryStore.setPortalCredential(ssid, password);
+    logger.info({ ssid }, "Enrolled network WiFi credentials on first sign-in");
   } else if (!safeEqualString(password, cred.password)) {
     logger.warn(
       { ssid, useConnection, source: cred.source },
@@ -278,6 +270,7 @@ authRouter.post("/login", validateBody(loginSchema), (req, res) => {
 
   // Remember successful SSID casing for suggestions
   memoryStore.portal.ssid = ssid;
+  memoryStore.persistCritical();
 
   const token = signSession({
     sub: useConnection ? `wifi-check:${ssid}` : `wifi:${ssid}`,
@@ -342,11 +335,11 @@ authRouter.put(
   validateBody(portalSchema),
   (req, res) => {
     const ssid = normalizeSsid(req.body.ssid);
-    memoryStore.portal.ssid = ssid;
     if (req.body.password !== undefined) {
-      const password = String(req.body.password);
-      memoryStore.portal.password = password;
-      memoryStore.portal.credentials[ssid.toLowerCase()] = password;
+      memoryStore.setPortalCredential(ssid, String(req.body.password));
+    } else {
+      memoryStore.portal.ssid = ssid;
+      memoryStore.persistCritical();
     }
     res.json({
       ssid,

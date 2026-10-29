@@ -91,6 +91,7 @@ export class BackendClient {
       user: string;
       password: string;
       tls_insecure: boolean;
+      use_https?: boolean;
       updated_at: string | null;
       configured: boolean;
     }>("GET", "/agent/router-connection");

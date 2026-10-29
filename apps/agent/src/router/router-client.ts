@@ -7,6 +7,8 @@ export type RouterConnectionConfig = {
   user: string;
   password: string;
   tls_insecure: boolean;
+  /** When false, talk to the router over plain HTTP (common on home gateways). */
+  use_https: boolean;
 };
 
 export class RouterError extends Error {
@@ -20,10 +22,24 @@ export class RouterError extends Error {
   }
 }
 
+function isTlsProtocolError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err);
+  const cause =
+    err instanceof Error && "cause" in err
+      ? String((err as { cause?: unknown }).cause)
+      : "";
+  const text = `${msg} ${cause}`.toLowerCase();
+  return (
+    text.includes("unsupported protocol") ||
+    text.includes("ssl routines") ||
+    text.includes("eproto") ||
+    text.includes("wrong version number")
+  );
+}
+
 /**
  * Minimal router REST API client (LAN only).
- * Uses Basic auth against https://router/rest/...
- * Credentials can come from the website (via API) or local .env fallback.
+ * Credentials come from the website Settings (via API) or local .env fallback.
  */
 export class RouterClient {
   private config: RouterConnectionConfig;
@@ -37,6 +53,7 @@ export class RouterClient {
       user: config?.user || env.ROUTER_USER,
       password: config?.password ?? env.ROUTER_PASSWORD,
       tls_insecure: config?.tls_insecure ?? env.ROUTER_TLS_INSECURE,
+      use_https: config?.use_https ?? true,
     };
     this.rebuild();
   }
@@ -47,7 +64,7 @@ export class RouterClient {
 
   fingerprint() {
     const c = this.config;
-    return `${c.host}|${c.port}|${c.user}|${c.password}|${c.tls_insecure}`;
+    return `${c.use_https ? "https" : "http"}|${c.host}|${c.port}|${c.user}|${c.password}|${c.tls_insecure}`;
   }
 
   hasCredentials() {
@@ -62,6 +79,7 @@ export class RouterClient {
       password:
         next.password !== undefined ? next.password : this.config.password,
       tls_insecure: next.tls_insecure ?? this.config.tls_insecure,
+      use_https: next.use_https ?? this.config.use_https,
     };
     const before = this.fingerprint();
     this.config = merged;
@@ -70,12 +88,24 @@ export class RouterClient {
   }
 
   private rebuild() {
-    this.baseUrl = `https://${this.config.host}:${this.config.port}/rest`;
+    const scheme = this.config.use_https ? "https" : "http";
+    this.baseUrl = `${scheme}://${this.config.host}:${this.config.port}/rest`;
     this.authHeader =
       "Basic " +
       Buffer.from(`${this.config.user}:${this.config.password}`).toString(
         "base64"
       );
+  }
+
+  private switchToHttp() {
+    if (!this.config.use_https) return;
+    this.config.use_https = false;
+    if (this.config.port === 443) this.config.port = 80;
+    this.rebuild();
+    logger.info(
+      { host: this.config.host, port: this.config.port },
+      "Router HTTPS unsupported — falling back to HTTP"
+    );
   }
 
   async request<T = unknown>(
@@ -91,19 +121,28 @@ export class RouterClient {
 
     const url = `${this.baseUrl}${path.startsWith("/") ? path : `/${path}`}`;
 
-    if (this.config.tls_insecure) {
+    if (this.config.use_https && this.config.tls_insecure) {
       process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
     }
 
-    const res = await fetch(url, {
-      method,
-      headers: {
-        Authorization: this.authHeader,
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-      body: body !== undefined ? JSON.stringify(body) : undefined,
-    });
+    let res: Response;
+    try {
+      res = await fetch(url, {
+        method,
+        headers: {
+          Authorization: this.authHeader,
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: body !== undefined ? JSON.stringify(body) : undefined,
+      });
+    } catch (err) {
+      if (this.config.use_https && isTlsProtocolError(err)) {
+        this.switchToHttp();
+        return this.request<T>(method, path, body);
+      }
+      throw err;
+    }
 
     const text = await res.text();
     let data: unknown = null;

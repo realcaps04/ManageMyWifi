@@ -53,6 +53,7 @@ agentRouter.post(
       version: body.version,
     });
 
+    memoryStore.persistCritical();
     logger.info({ agentId: result.agent_id, name: body.name }, "Agent registered");
     res.status(201).json(result);
   }

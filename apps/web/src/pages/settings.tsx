@@ -8,6 +8,13 @@ import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { formatRelative } from "@/lib/utils";
+import {
+  readPortalCookie,
+  readRouterCookie,
+  restoreCookiesToApi,
+  savePortalCookie,
+  saveRouterCookie,
+} from "@/lib/persist-client";
 
 export function SettingsPage() {
   const qc = useQueryClient();
@@ -34,18 +41,49 @@ export function SettingsPage() {
   const [routerUser, setRouterUser] = useState("admin");
   const [routerPassword, setRouterPassword] = useState("");
   const [routerTlsInsecure, setRouterTlsInsecure] = useState(true);
+  const [routerUseHttps, setRouterUseHttps] = useState(true);
   const [routerMessage, setRouterMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    if (portal.data?.ssid) setSsid(portal.data.ssid);
+    void restoreCookiesToApi().then(() => {
+      void qc.invalidateQueries({ queryKey: ["router-connection"] });
+      void qc.invalidateQueries({ queryKey: ["auth-portal"] });
+    });
+  }, [qc]);
+
+  useEffect(() => {
+    if (portal.data?.ssid) {
+      setSsid(portal.data.ssid);
+      return;
+    }
+    const cookie = readPortalCookie();
+    if (cookie?.ssid) setSsid(cookie.ssid);
   }, [portal.data?.ssid]);
 
   useEffect(() => {
-    if (!routerConn.data) return;
-    setRouterHost(routerConn.data.host || "192.168.1.1");
-    setRouterPort(String(routerConn.data.port || 443));
-    setRouterUser(routerConn.data.user || "admin");
-    setRouterTlsInsecure(routerConn.data.tls_insecure);
+    const cookie = readRouterCookie();
+    if (routerConn.data?.configured) {
+      setRouterHost(routerConn.data.host || "192.168.1.1");
+      setRouterPort(String(routerConn.data.port || 443));
+      setRouterUser(routerConn.data.user || "admin");
+      setRouterTlsInsecure(routerConn.data.tls_insecure);
+      setRouterUseHttps(routerConn.data.use_https !== false);
+      return;
+    }
+    if (cookie) {
+      setRouterHost(cookie.host || "192.168.1.1");
+      setRouterPort(String(cookie.port || 443));
+      setRouterUser(cookie.user || "admin");
+      setRouterTlsInsecure(cookie.tls_insecure);
+      setRouterUseHttps(cookie.use_https !== false);
+      if (cookie.password) setRouterPassword(cookie.password);
+    } else if (routerConn.data) {
+      setRouterHost(routerConn.data.host || "192.168.1.1");
+      setRouterPort(String(routerConn.data.port || 443));
+      setRouterUser(routerConn.data.user || "admin");
+      setRouterTlsInsecure(routerConn.data.tls_insecure);
+      setRouterUseHttps(routerConn.data.use_https !== false);
+    }
   }, [routerConn.data]);
 
   const savePortal = useMutation({
@@ -55,8 +93,9 @@ export function SettingsPage() {
         ...(password ? { password } : {}),
       }),
     onSuccess: () => {
+      savePortalCookie(ssid.trim(), password || undefined);
       setPassword("");
-      setMessage("Password saved for that network.");
+      setMessage("Password saved (kept in cookie + server file).");
       void qc.invalidateQueries({ queryKey: ["auth-portal"] });
     },
     onError: (err: Error) => setMessage(err.message),
@@ -70,12 +109,24 @@ export function SettingsPage() {
         user: routerUser.trim(),
         ...(routerPassword ? { password: routerPassword } : {}),
         tls_insecure: routerTlsInsecure,
+        use_https: routerUseHttps,
       }),
     onSuccess: (data) => {
+      saveRouterCookie(
+        {
+          host: routerHost.trim(),
+          port: Number(routerPort) || 443,
+          user: routerUser.trim(),
+          password: "",
+          tls_insecure: routerTlsInsecure,
+          use_https: routerUseHttps,
+        },
+        routerPassword || undefined
+      );
       setRouterPassword("");
       setRouterMessage(
         data.message ||
-          "Saved. The local agent will pick this up automatically."
+          "Saved in cookie and on the server. Agent will pick this up automatically."
       );
       void qc.invalidateQueries({ queryKey: ["router-connection"] });
       void qc.invalidateQueries({ queryKey: ["network-status"] });
@@ -93,9 +144,9 @@ export function SettingsPage() {
         <CardHeader>
           <CardTitle>Connect your router</CardTitle>
           <p className="mt-0.5 text-sm text-muted">
-            Enter your WiFi router’s LAN address and login here. You do not edit
-            any .env files. Keep a small agent running on a PC on the same WiFi;
-            it downloads these details securely and talks to the router locally.
+            Enter your WiFi router’s LAN address and login here. Values are kept
+            in a browser cookie (survive refresh) and a local server file (no
+            database). Keep a small agent running on a PC on the same WiFi.
           </p>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -157,8 +208,22 @@ export function SettingsPage() {
             <input
               type="checkbox"
               className="rounded border-border"
+              checked={routerUseHttps}
+              onChange={(e) => {
+                const https = e.target.checked;
+                setRouterUseHttps(https);
+                setRouterPort(https ? "443" : "80");
+              }}
+            />
+            Use HTTPS (turn off if your router admin page is http://…)
+          </label>
+          <label className="flex items-center gap-2 text-sm text-slate-700">
+            <input
+              type="checkbox"
+              className="rounded border-border"
               checked={routerTlsInsecure}
               onChange={(e) => setRouterTlsInsecure(e.target.checked)}
+              disabled={!routerUseHttps}
             />
             Allow self-signed HTTPS certificate (common on home routers)
           </label>

@@ -23,6 +23,7 @@ const routerConnectionSchema = z.object({
   user: z.string().trim().min(1).max(128),
   password: z.string().min(1).max(256).optional(),
   tls_insecure: z.boolean().optional(),
+  use_https: z.boolean().optional(),
 });
 
 /**

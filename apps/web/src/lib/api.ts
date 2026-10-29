@@ -240,6 +240,7 @@ export const api = {
       user: string;
       password_set: boolean;
       tls_insecure: boolean;
+      use_https: boolean;
       updated_at: string | null;
       configured: boolean;
     }>("/network/router-connection"),
@@ -249,6 +250,7 @@ export const api = {
     user: string;
     password?: string;
     tls_insecure?: boolean;
+    use_https?: boolean;
   }) =>
     request<{
       host: string;
@@ -256,6 +258,7 @@ export const api = {
       user: string;
       password_set: boolean;
       tls_insecure: boolean;
+      use_https: boolean;
       updated_at: string | null;
       configured: boolean;
       message?: string;

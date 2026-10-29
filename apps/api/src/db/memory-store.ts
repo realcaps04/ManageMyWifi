@@ -1,6 +1,6 @@
 /**
- * In-memory store for local agent ↔ API ↔ web development.
- * Data resets on process restart — suitable for local testing and Vercel warm invocations.
+ * In-memory store with a small on-disk slice (no database).
+ * Router + portal credentials (+ agent tokens) survive API restarts via data/persist.json.
  */
 
 import { randomUUID, createHash } from "crypto";
@@ -19,6 +19,7 @@ import type {
   WifiNetworkInfo,
   WirelessStack,
 } from "@wifi-control/shared-types";
+import { loadPersistedStore, savePersistedStore } from "./persist";
 
 function nowIso() {
   return new Date().toISOString();
@@ -71,6 +72,7 @@ export class MemoryStore {
     user: string;
     password: string;
     tls_insecure: boolean;
+    use_https: boolean;
     updated_at: string | null;
   } = {
     host:
@@ -90,6 +92,7 @@ export class MemoryStore {
       (process.env.ROUTER_TLS_INSECURE ||
         process.env.MIKROTIK_TLS_INSECURE ||
         "true") !== "false",
+    use_https: (process.env.ROUTER_USE_HTTPS || "true") !== "false",
     updated_at: null,
   };
 
@@ -115,6 +118,67 @@ export class MemoryStore {
   constructor() {
     this.router.network_id = this.network.id;
     this.router.host = this.routerConnection.host;
+    this.hydrateFromDisk();
+  }
+
+  private hydrateFromDisk() {
+    const saved = loadPersistedStore();
+    if (!saved) return;
+
+    if (saved.routerConnection?.host) {
+      this.routerConnection = {
+        ...this.routerConnection,
+        ...saved.routerConnection,
+      };
+      this.router.host = this.routerConnection.host;
+    }
+
+    if (saved.portal) {
+      this.portal = {
+        ssid: saved.portal.ssid ?? this.portal.ssid,
+        password: saved.portal.password ?? this.portal.password,
+        credentials: {
+          ...this.portal.credentials,
+          ...(saved.portal.credentials || {}),
+        },
+      };
+    }
+
+    if (saved.agents?.length) {
+      for (const row of saved.agents) {
+        const agent = row as unknown as Agent & { token_hash: string };
+        if (agent?.id && agent.token_hash) {
+          this.agents.set(agent.id, agent);
+        }
+      }
+    }
+
+    if (saved.agentTokens?.length) {
+      for (const [token, id] of saved.agentTokens) {
+        if (token && id) this.agentTokens.set(token, id);
+      }
+    }
+  }
+
+  persistCritical() {
+    savePersistedStore({
+      routerConnection: { ...this.routerConnection },
+      portal: {
+        ssid: this.portal.ssid,
+        password: this.portal.password,
+        credentials: { ...this.portal.credentials },
+      },
+      agents: [...this.agents.values()].map((a) => ({ ...a })),
+      agentTokens: [...this.agentTokens.entries()],
+    });
+  }
+
+  setPortalCredential(ssid: string, password: string) {
+    const normalized = ssid.trim();
+    this.portal.ssid = normalized;
+    this.portal.password = password;
+    this.portal.credentials[normalized.toLowerCase()] = password;
+    this.persistCritical();
   }
 
   getRouterConnectionPublic() {
@@ -125,6 +189,7 @@ export class MemoryStore {
       user: c.user,
       password_set: Boolean(c.password),
       tls_insecure: c.tls_insecure,
+      use_https: c.use_https,
       updated_at: c.updated_at,
       configured: Boolean(c.host && c.user && c.password),
     };
@@ -138,6 +203,7 @@ export class MemoryStore {
       user: c.user,
       password: c.password,
       tls_insecure: c.tls_insecure,
+      use_https: c.use_https,
       updated_at: c.updated_at,
       configured: Boolean(c.host && c.user && c.password),
     };
@@ -149,6 +215,7 @@ export class MemoryStore {
     user: string;
     password?: string;
     tls_insecure?: boolean;
+    use_https?: boolean;
   }) {
     const host = input.host.trim();
     const user = input.user.trim();
@@ -164,9 +231,19 @@ export class MemoryStore {
     if (input.tls_insecure !== undefined) {
       this.routerConnection.tls_insecure = input.tls_insecure;
     }
+    if (input.use_https !== undefined) {
+      this.routerConnection.use_https = input.use_https;
+      if (!input.use_https && this.routerConnection.port === 443) {
+        this.routerConnection.port = 80;
+      }
+      if (input.use_https && this.routerConnection.port === 80) {
+        this.routerConnection.port = 443;
+      }
+    }
     this.routerConnection.updated_at = nowIso();
     this.router.host = host;
     this.router.updated_at = nowIso();
+    this.persistCritical();
     return this.getRouterConnectionPublic();
   }
 
@@ -192,6 +269,7 @@ export class MemoryStore {
     };
     this.agents.set(id, agent);
     this.agentTokens.set(token, id);
+    this.persistCritical();
     return { agent_id: id, agent_token: token };
   }
 
